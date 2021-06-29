@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.IO;
+using System.Drawing.Imaging;
 
 namespace uPTT
 {
@@ -66,6 +67,7 @@ namespace uPTT
         bool inptt;
         bool muted;
         bool feedback;
+        bool startmin;
         System.Media.SoundPlayer on, off;
 
         void Form1_Load(object sender, EventArgs e)
@@ -73,7 +75,8 @@ namespace uPTT
             pttkey = Keys.None;
             inptt = false;
             muted = true;
-            feedback = false;
+            feedback = true;
+            startmin = false;
 
             try
             {
@@ -81,13 +84,17 @@ namespace uPTT
                 pttkey = (Keys)(Convert.ToInt32(config[0]));
                 _key.Text = config[1];
                 Boolean.TryParse(config[2], out feedback);
-                feedbackCheckBox.Checked = feedback;
+                Boolean.TryParse(config[3], out startmin);
             }
             catch (Exception ex)
             {
                 _key.Text = "NOT SET";
                 pttkey = Keys.None;
             }
+            feedbackCheckBox.Checked = feedback;
+            minimizedCheckBox.Checked = startmin;
+
+
             try
             {
                 if (!File.Exists("uptt-on.wav"))
@@ -109,6 +116,10 @@ namespace uPTT
 
             }
 
+
+            this.Icon = ico();
+            notifyIcon.Icon = ico();
+
             //RegisterHotKey(this.Handle, 0, 0, (int)Keys.XButton1);
 
             //cbDelegate = new HookProc(this.cbFunction);
@@ -124,6 +135,17 @@ namespace uPTT
             t.Tick += pttcheck;
             t.Interval = 10;
             t.Start();
+
+            if (minimizedCheckBox.Checked)
+                this.WindowState = FormWindowState.Minimized;
+        }
+
+        Icon ico()
+        {
+            using (var strm = System.Reflection.Assembly.
+                GetExecutingAssembly().GetManifestResourceStream(
+                "uPTT.microphone.ico"))
+                    return new Icon(strm);
         }
 
         protected override void WndProc(ref Message m)
@@ -176,7 +198,7 @@ namespace uPTT
 
         private void saveConfig()
         {
-            File.WriteAllText("uptt.ini", (int)pttkey + "\r\n" + _key.Text + "\r\n" + (bool)feedback, Encoding.UTF8);
+            File.WriteAllText("uptt.ini", (int)pttkey + "\r\n" + _key.Text + "\r\n" + (bool)feedback + "\r\n" + (bool)startmin, Encoding.UTF8);
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -184,23 +206,14 @@ namespace uPTT
             //UnregisterHotKey(this.Handle, 0);
             saveConfig();
         }
+
         private void Form1_Resize(object sender, EventArgs e)
         {
             if (this.WindowState == FormWindowState.Minimized)
             {
-                if (FormWindowState.Minimized == this.WindowState)
-                {
-                    Hide();
-                    notifyIcon.Visible = true;
-                    this.ShowInTaskbar = false; 
-                }
-                else if (FormWindowState.Normal == this.WindowState)
-                {
-                    Show();
-                    this.WindowState = FormWindowState.Normal;
-                    notifyIcon.Visible = false;
-                    this.ShowInTaskbar = true;
-                }
+                Hide();
+                notifyIcon.Visible = true;
+                this.ShowInTaskbar = false; 
             }
         }
 
@@ -215,6 +228,11 @@ namespace uPTT
         private void feedbackCheckBox_CheckedChanged(object sender, EventArgs e)
         {
             feedback = feedbackCheckBox.Checked;
+        }
+
+        private void minimizedCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            startmin = minimizedCheckBox.Checked;
         }
 
         private void closeToolStripMenuItem_Click(object sender, EventArgs e)
