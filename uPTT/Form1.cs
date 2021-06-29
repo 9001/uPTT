@@ -65,6 +65,7 @@ namespace uPTT
         Keys pttkey;
         bool inptt;
         bool muted;
+        bool feedback;
         System.Media.SoundPlayer on, off;
 
         void Form1_Load(object sender, EventArgs e)
@@ -72,12 +73,15 @@ namespace uPTT
             pttkey = Keys.None;
             inptt = false;
             muted = true;
+            feedback = false;
 
             try
             {
                 string[] config = File.ReadAllLines("uptt.ini", Encoding.UTF8);
                 pttkey = (Keys)(Convert.ToInt32(config[0]));
                 _key.Text = config[1];
+                Boolean.TryParse(config[2], out feedback);
+                feedbackCheckBox.Checked = feedback;
             }
             catch (Exception ex)
             {
@@ -156,7 +160,7 @@ namespace uPTT
             var device = DevEnum.GetDefaultAudioEndpoint(EDataFlow.eCapture, ERole.eMultimedia);
             device.AudioEndpointVolume.Mute = muted;
             var au = muted ? off : on;
-            if (au != null)
+            if (au != null && feedback)
                 au.Play();
         }
 
@@ -170,11 +174,53 @@ namespace uPTT
             return ret;
         }
 
+        private void saveConfig()
+        {
+            File.WriteAllText("uptt.ini", (int)pttkey + "\r\n" + _key.Text + "\r\n" + (bool)feedback, Encoding.UTF8);
+        }
+
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
             //UnregisterHotKey(this.Handle, 0);
+            saveConfig();
+        }
+        private void Form1_Resize(object sender, EventArgs e)
+        {
+            if (this.WindowState == FormWindowState.Minimized)
+            {
+                if (FormWindowState.Minimized == this.WindowState)
+                {
+                    Hide();
+                    notifyIcon.Visible = true;
+                    this.ShowInTaskbar = false; 
+                }
+                else if (FormWindowState.Normal == this.WindowState)
+                {
+                    Show();
+                    this.WindowState = FormWindowState.Normal;
+                    notifyIcon.Visible = false;
+                    this.ShowInTaskbar = true;
+                }
+            }
+        }
 
-            File.WriteAllText("uptt.ini", (int)pttkey + "\r\n" + _key.Text, Encoding.UTF8);
+        private void notifyIcon_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            Show();
+            this.WindowState = FormWindowState.Normal;
+            notifyIcon.Visible = false;
+            this.ShowInTaskbar = true;
+        }
+
+        private void feedbackCheckBox_CheckedChanged(object sender, EventArgs e)
+        {
+            feedback = feedbackCheckBox.Checked;
+        }
+
+        private void closeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            saveConfig();
+            System.Windows.Forms.Application.Exit();
         }
 
         void _pick_Click(object sender, EventArgs e)
@@ -191,7 +237,6 @@ namespace uPTT
             {
                 t1.Stop();
                 badkeys = getkeys();
-                this.Hide();
                 form.Show();
                 t2.Start();
             };
